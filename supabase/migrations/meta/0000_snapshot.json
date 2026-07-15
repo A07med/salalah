@@ -1,0 +1,175 @@
+{
+  "id": "40488c36-4b44-4f3f-b286-b26b45824f60",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.mishli_game_scores": {
+      "name": "mishli_game_scores",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "player_name": {
+          "name": "player_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normalized_name": {
+          "name": "normalized_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "score": {
+          "name": "score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "level_reached": {
+          "name": "level_reached",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "successful_hits": {
+          "name": "successful_hits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "mistakes": {
+          "name": "mistakes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "mishli_game_scores_session_id_uidx": {
+          "name": "mishli_game_scores_session_id_uidx",
+          "columns": [
+            {
+              "expression": "session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "mishli_game_scores_normalized_name_idx": {
+          "name": "mishli_game_scores_normalized_name_idx",
+          "columns": [
+            {
+              "expression": "normalized_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "mishli_game_scores_leaderboard_idx": {
+          "name": "mishli_game_scores_leaderboard_idx",
+          "columns": [
+            {
+              "expression": "score",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "mishli_game_scores_player_name_length": {
+          "name": "mishli_game_scores_player_name_length",
+          "value": "char_length(btrim(\"mishli_game_scores\".\"player_name\")) between 2 and 20"
+        },
+        "mishli_game_scores_score_range": {
+          "name": "mishli_game_scores_score_range",
+          "value": "\"mishli_game_scores\".\"score\" between 1 and 10000000"
+        },
+        "mishli_game_scores_level_range": {
+          "name": "mishli_game_scores_level_range",
+          "value": "\"mishli_game_scores\".\"level_reached\" between 1 and 1000"
+        },
+        "mishli_game_scores_successful_hits_nonnegative": {
+          "name": "mishli_game_scores_successful_hits_nonnegative",
+          "value": "\"mishli_game_scores\".\"successful_hits\" >= 0"
+        },
+        "mishli_game_scores_mistakes_nonnegative": {
+          "name": "mishli_game_scores_mistakes_nonnegative",
+          "value": "\"mishli_game_scores\".\"mistakes\" >= 0"
+        },
+        "mishli_game_scores_duration_nonnegative": {
+          "name": "mishli_game_scores_duration_nonnegative",
+          "value": "\"mishli_game_scores\".\"duration_ms\" >= 0"
+        }
+      },
+      "isRLSEnabled": true
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
