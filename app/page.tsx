@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { GameShell } from "@/components/layout/GameShell";
 import { StartScreen } from "@/components/game/StartScreen";
 import { GameStage } from "@/components/game/GameStage";
@@ -16,11 +16,17 @@ interface ActiveGame {
 }
 
 export default function Home() {
-  const [bestScore, setBestScore] = useState(() =>
-    typeof window !== "undefined" ? getLocalBestScore() : 0,
-  );
+  // Keep the server and first client render identical; hydrate local storage after mount.
+  const [bestScore, setBestScore] = useState(0);
   const [activeGame, setActiveGame] = useState<ActiveGame | null>(null);
   const [leaderboardRevision, setLeaderboardRevision] = useState(0);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setBestScore(getLocalBestScore());
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const handleStart = useCallback((playerName: string) => {
     setActiveGame({

@@ -12,6 +12,8 @@ export interface GameScoreSubmission {
   successfulHits: number;
   mistakes: number;
   durationMs: number;
+  /** Authoritative per-fruit scores for a completed three-Mishli run. */
+  attemptScores: [number, number, number];
 }
 
 export interface LeaderboardResponse {

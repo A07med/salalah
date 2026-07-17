@@ -4,6 +4,7 @@ import {
   index,
   integer,
   pgTable,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -22,6 +23,7 @@ export const mishliGameScores = pgTable(
     successfulHits: integer("successful_hits").notNull().default(0),
     mistakes: integer("mistakes").notNull().default(0),
     durationMs: integer("duration_ms").notNull().default(0),
+    scoreVersion: smallint("score_version").notNull().default(1),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "date",
@@ -33,6 +35,11 @@ export const mishliGameScores = pgTable(
     uniqueIndex("mishli_game_scores_session_id_uidx").on(table.sessionId),
     index("mishli_game_scores_normalized_name_idx").on(table.normalizedName),
     index("mishli_game_scores_leaderboard_idx").on(
+      table.score.desc(),
+      table.createdAt.asc(),
+    ),
+    index("mishli_game_scores_v2_leaderboard_idx").on(
+      table.scoreVersion,
       table.score.desc(),
       table.createdAt.asc(),
     ),
@@ -59,6 +66,10 @@ export const mishliGameScores = pgTable(
     check(
       "mishli_game_scores_duration_nonnegative",
       sql`${table.durationMs} >= 0`,
+    ),
+    check(
+      "mishli_game_scores_score_version_positive",
+      sql`${table.scoreVersion} >= 1`,
     ),
   ],
 ).enableRLS();

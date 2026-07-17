@@ -1,7 +1,10 @@
 import type { Point } from "./types";
 
-/** Extra padding so mobile swipes feel fair */
-const HIT_PADDING = 22;
+/**
+ * Tiny geometric slop for sub-pixel edges only.
+ * Must not expand the hitbox onto the chopping board.
+ */
+const HIT_PADDING = 4;
 
 export function normalizePointerEvent(
   clientX: number,

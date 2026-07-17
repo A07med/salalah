@@ -1,16 +1,14 @@
-export type GameStatus = "idle" | "playing" | "levelComplete" | "gameOver";
-export type CutQuality = "clean" | "edge" | "weak" | "miss";
+export type GameStatus = "idle" | "playing" | "runComplete";
+export type RunPhase =
+  | "ready"
+  | "resolving-attempt"
+  | "showing-result"
+  | "run-complete";
+export type AttemptIndex = 0 | 1 | 2;
 
 export interface Point {
   x: number;
   y: number;
-}
-
-export interface SlashLine {
-  id: string;
-  start: Point;
-  end: Point;
-  createdAt: number;
 }
 
 export interface MishliHitMark {
@@ -26,44 +24,24 @@ export interface CutGesture {
   end: Point;
 }
 
-export interface CutResult {
-  hit: boolean;
-  damage: number;
-  score: number;
-  impactPoint: Point | null;
-  swipeAngle: number;
-}
-
-export interface DifficultyConfig {
-  swingSpeed: number;
-  swingAmplitude: number;
-  coconutScale: number;
-  damageMultiplier: number;
-  maxMisses: number;
-  windGusts: boolean;
-}
-
 export interface GameState {
   status: GameStatus;
-  level: number;
-  score: number;
-  cutProgress: number;
-  missCount: number;
-  maxMisses: number;
-  swingAmplitude: number;
-  swingSpeed: number;
+  phase: RunPhase;
+  attemptIndex: AttemptIndex;
+  attemptScores: number[];
+  totalScore: number;
+  successfulHits: number;
+  mistakes: number;
   coconutScale: number;
-  slashLines: SlashLine[];
   activeSlash: CutGesture | null;
   isDropping: boolean;
-  lastCutQuality: CutQuality | null;
-  lastDamage: number;
+  lastFruitScore: number;
+  lastQualityLabel: string;
   lastHitPoint: Point | null;
   lastSwipeAngle: number;
   mishliHitMarks: MishliHitMark[];
   cutFeedbackKey: number;
   bestScore: number;
-  levelCompleteBonus: number;
 }
 
 export type GameAction =
@@ -71,12 +49,12 @@ export type GameAction =
   | { type: "RESET_TO_IDLE" }
   | { type: "POINTER_DOWN"; point: Point }
   | { type: "POINTER_MOVE"; point: Point }
+  | { type: "POINTER_CANCEL" }
   | {
       type: "POINTER_UP";
       point: Point;
       coconutRect: DOMRect | null;
       fruitBodyRect: DOMRect | null;
     }
-  | { type: "NEXT_LEVEL" }
-  | { type: "CLEAR_SLASH_LINES" }
+  | { type: "ADVANCE_AFTER_FEEDBACK" }
   | { type: "DROP_COMPLETE" };

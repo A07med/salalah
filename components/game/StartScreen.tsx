@@ -37,9 +37,8 @@ export function StartScreen({
   leaderboardRevision = 0,
   onStart,
 }: StartScreenProps) {
-  const [playerName, setPlayerName] = useState(() =>
-    typeof window !== "undefined" ? getPlayerName() : "",
-  );
+  // Avoid rendering local-only state before hydration.
+  const [playerName, setPlayerName] = useState("");
   const [nameError, setNameError] = useState<string | null>(null);
   const [leaderboard, setLeaderboard] = useState<GlobalLeaderboardEntry[]>([]);
   const [leaderboardStatus, setLeaderboardStatus] = useState<
@@ -49,6 +48,13 @@ export function StartScreen({
   const startTransitioningRef = useRef(false);
   const [shakeForm, setShakeForm] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setPlayerName(getPlayerName());
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const loadLeaderboard = useCallback(async () => {
     leaderboardAbortRef.current?.abort();
@@ -172,10 +178,10 @@ export function StartScreen({
             className={`mt-1 space-y-1.5 text-center ${contentClass} max-w-[360px]`}
           >
             <p className="text-[1.0625rem] font-extrabold leading-relaxed text-game-ink">
-              اسحب السكين واقطع المشلي
+             اقطع المشلي بضربه وحدة
             </p>
             <p className="text-[0.8125rem] font-semibold leading-relaxed text-game-ink/85">
-              كل ضربة تقرّبك أكثر لين ينقطع !
+              كلما اقتربت ضربة الساطور من العلامة، زادت نقاطك!
             </p>
           </div>
 

@@ -1,7 +1,7 @@
 import type { HTMLAttributes, ReactNode, Ref } from "react";
 
 interface WoodenCuttingTableProps {
-  progress: ReactNode;
+  progress?: ReactNode;
   children: ReactNode;
   boardShake?: boolean;
   cuttingZoneRef?: Ref<HTMLDivElement>;
@@ -68,9 +68,11 @@ export function WoodenCuttingTable({
       </svg>
 
       <div className="relative flex w-full max-w-[18.5rem] flex-col items-center gap-7">
-        <div data-qa="cut-progress" className="pointer-events-none w-full shrink-0">
-          {progress}
-        </div>
+        {progress ? (
+          <div data-qa="cut-progress" className="pointer-events-none w-full shrink-0">
+            {progress}
+          </div>
+        ) : null}
 
         <div
           data-qa="chopping-board"
@@ -79,7 +81,7 @@ export function WoodenCuttingTable({
           <div className="relative flex h-[15.75rem] w-full items-end justify-center pb-4">
             <svg
               viewBox="0 0 320 168"
-              className="absolute bottom-0 w-full"
+              className="pointer-events-none absolute bottom-0 w-full"
               aria-hidden
             >
             {/* Board shadow */}
@@ -109,11 +111,12 @@ export function WoodenCuttingTable({
             <path d="M138 68 L178 72" stroke="#754326" strokeWidth="1.6" opacity="0.25" strokeLinecap="round" />
             </svg>
 
+            {/* Full-board capture surface so swipes may start beside/above the fruit */}
             <div
               ref={cuttingZoneRef}
               data-qa="cutting-zone"
               {...cuttingZoneProps}
-              className={`relative z-10 flex w-full items-end justify-center pb-4 touch-none ${cuttingZoneProps?.className ?? ""}`}
+              className={`absolute inset-0 z-10 flex touch-none items-end justify-center pb-4 ${cuttingZoneProps?.className ?? ""}`}
             >
               {children}
             </div>

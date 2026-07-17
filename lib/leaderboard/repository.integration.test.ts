@@ -3,6 +3,7 @@ import { like } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { mishliGameScores } from "@/db/schema";
+import { CURRENT_SCORE_VERSION } from "@/lib/game/scoreVersion";
 
 import { normalizePlayerName } from "./normalizePlayerName";
 import {
@@ -34,15 +35,23 @@ function score(
   value: number,
 ): ValidatedGameScore {
   const { normalizedName } = normalizePlayerName(playerName);
+  const clamped = Math.min(3000, Math.max(1, value));
+  const a = Math.min(1000, clamped);
+  const b = Math.min(1000, Math.max(0, clamped - a));
+  const c = Math.min(1000, Math.max(0, clamped - a - b));
+  const attemptScores: [number, number, number] = [a, b, c];
+  const successfulHits = attemptScores.filter((entry) => entry > 0).length;
   return {
     sessionId: crypto.randomUUID(),
     playerName,
     normalizedName,
-    score: value,
-    levelReached: 2,
-    successfulHits: 10,
-    mistakes: 1,
+    score: a + b + c,
+    levelReached: 1,
+    successfulHits,
+    mistakes: 3 - successfulHits,
     durationMs: 30_000,
+    attemptScores,
+    scoreVersion: CURRENT_SCORE_VERSION,
   };
 }
 
@@ -66,54 +75,72 @@ describe.skipIf(!integrationEnabled)(
       );
     });
 
-    it("selects each player's best score before applying global order and limit", async () => {
+    it("selects each player's best version-2 score before applying global order", async () => {
       const playerA = `${qaRunPrefix} a`;
       const playerB = `${qaRunPrefix} b`;
       const playerC = `${qaRunPrefix} c`;
       const qaNames = new Set([playerA, playerB, playerC]);
-      const a1000 = score(playerA, 9_900_100);
+      const a1000 = score(playerA, 2100);
       await submitGameScore(a1000);
-      await submitGameScore(score(playerB, 9_900_300));
-      await submitGameScore(score(playerC, 9_900_200));
-      await submitGameScore(score(playerA.toUpperCase(), 9_900_050));
+      await submitGameScore(score(playerB, 2900));
+      await submitGameScore(score(playerC, 2500));
+      await submitGameScore(score(playerA.toUpperCase(), 1800));
+
+      // Legacy version-1 row must not appear on the v2 leaderboard.
+      await getDb().insert(mishliGameScores).values({
+        sessionId: crypto.randomUUID(),
+        playerName: `${qaRunPrefix} legacy`,
+        normalizedName: `${qaRunPrefix} legacy`,
+        score: 9_900_000,
+        levelReached: 8,
+        successfulHits: 40,
+        mistakes: 1,
+        durationMs: 90_000,
+        scoreVersion: 1,
+      });
 
       const firstResults = (await getGlobalLeaderboard(10)).filter((entry) =>
         qaNames.has(entry.playerName.toLowerCase()),
       );
       expect(firstResults).toEqual([
-        { playerName: playerB, score: 9_900_300, levelReached: 2 },
-        { playerName: playerC, score: 9_900_200, levelReached: 2 },
-        { playerName: playerA, score: 9_900_100, levelReached: 2 },
+        { playerName: playerB, score: 2900, levelReached: 1 },
+        { playerName: playerC, score: 2500, levelReached: 1 },
+        { playerName: playerA, score: 2100, levelReached: 1 },
       ]);
+      expect(
+        (await getGlobalLeaderboard(10)).some((entry) =>
+          entry.playerName.includes("legacy"),
+        ),
+      ).toBe(false);
 
-      await submitGameScore(score(playerA.toUpperCase(), 9_900_400));
+      await submitGameScore(score(playerA.toUpperCase(), 3000));
       const updatedResults = (await getGlobalLeaderboard(10)).filter((entry) =>
         qaNames.has(entry.playerName.toLowerCase()),
       );
       expect(updatedResults).toEqual([
         {
           playerName: playerA.toUpperCase(),
-          score: 9_900_400,
-          levelReached: 2,
+          score: 3000,
+          levelReached: 1,
         },
-        { playerName: playerB, score: 9_900_300, levelReached: 2 },
-        { playerName: playerC, score: 9_900_200, levelReached: 2 },
+        { playerName: playerB, score: 2900, levelReached: 1 },
+        { playerName: playerC, score: 2500, levelReached: 1 },
       ]);
     });
 
     it("keeps the earliest achievement when equal scores tie", async () => {
       const tiePlayer = `${qaRunPrefix} tie`;
-      await submitGameScore(score(tiePlayer, 9_900_250));
+      await submitGameScore(score(tiePlayer, 2400));
       await new Promise((resolve) => setTimeout(resolve, 5));
-      await submitGameScore(score(tiePlayer.toUpperCase(), 9_900_250));
+      await submitGameScore(score(tiePlayer.toUpperCase(), 2400));
 
       const tieResult = (await getGlobalLeaderboard(10)).find(
         (entry) => entry.playerName.toLowerCase() === tiePlayer,
       );
       expect(tieResult).toEqual({
         playerName: tiePlayer,
-        score: 9_900_250,
-        levelReached: 2,
+        score: 2400,
+        levelReached: 1,
       });
     });
   },

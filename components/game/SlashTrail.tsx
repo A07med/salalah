@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Point, SlashLine } from "@/lib/game/types";
 import { SLASH_FADE_MS } from "@/lib/game/constants";
+import type { Point } from "@/lib/game/types";
+
+interface SlashLine {
+  id: string;
+  start: Point;
+  end: Point;
+  createdAt: number;
+}
 
 interface SlashTrailProps {
   slashLines: SlashLine[];

@@ -1,23 +1,36 @@
 "use client";
 
-import { useRef, useCallback, useEffect, useLayoutEffect, useState, useMemo } from "react";
+import {
+  useRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useMemo,
+} from "react";
 import { TableMishli } from "./TableMishli";
-import { CutProgress } from "./CutProgress";
 import { ScoreBoard } from "./ScoreBoard";
-import { LevelBadge } from "./LevelBadge";
-import { MissCounter } from "./MissCounter";
+import { AttemptCutsCard } from "./AttemptCutsCard";
+import { AttemptScorePop } from "./AttemptScorePop";
+import { SwipeGestureHint } from "./SwipeGestureHint";
+import { FinalRunModal } from "./FinalRunModal";
 import { DhofarFruitStallBackground } from "./illustrations/DhofarFruitStallBackground";
 import { WoodenCuttingTable } from "./illustrations/WoodenCuttingTable";
 import { CutParticles } from "./CutParticles";
-import { ProgressPop } from "./ProgressPop";
 import { MissFlash } from "./MissFlash";
-import { LevelCompleteModal } from "./LevelCompleteModal";
-import { GameOverModal } from "./GameOverModal";
-import { CLEAVER_RENDER_SIZE, GameplayCleaver } from "./GameplayCleaver";
+import { GameplayCleaver } from "./GameplayCleaver";
 import { CuttingStreak } from "./CuttingStreak";
 import { InputQaOverlay, isInputQaEnabled } from "./InputQaOverlay";
 import { useGameEngine } from "@/lib/hooks/useGameEngine";
-import { clientToLocal, rectToLocal, swipeAngleDeg } from "@/lib/game/coordinates";
+import {
+  clientToLocal,
+  rectToLocal,
+  swipeAngleDeg,
+} from "@/lib/game/coordinates";
+import { getFruitTarget } from "@/lib/game/cutTargets";
+import { getSwipeLength } from "@/lib/game/collision";
+import { MIN_SWIPE_LENGTH } from "@/lib/game/constants";
+import { ATTEMPT_FEEDBACK_MS } from "@/lib/game/scoreVersion";
 import { createGameSessionId } from "@/lib/game/sessionId";
 import type { Point } from "@/lib/game/types";
 import {
@@ -37,8 +50,6 @@ interface GameStageProps {
 interface ActiveRun {
   sessionId: string;
   startedAt: number;
-  successfulHits: number;
-  mistakes: number;
 }
 
 export function GameStage({
@@ -50,84 +61,130 @@ export function GameStage({
   const stageRef = useRef<HTMLDivElement>(null);
   const cuttingZoneRef = useRef<HTMLDivElement>(null);
   const isPointerDown = useRef(false);
+  const activePointerIdRef = useRef<number | null>(null);
+  const pointerStartLocalRef = useRef<Point | null>(null);
   const lastPointerLocal = useRef<Point | null>(null);
+  const feedbackTimerRef = useRef<number | null>(null);
+  const tapFeedbackTimerRef = useRef<number | null>(null);
   const [bestScore, setBestScore] = useState(0);
   const [boardShake, setBoardShake] = useState(0);
   const [pointerLocal, setPointerLocal] = useState<Point | null>(null);
   const [clientPoint, setClientPoint] = useState<Point | null>(null);
   const [mouseInZone, setMouseInZone] = useState(false);
   const [touchActive, setTouchActive] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [tutorialVisible, setTutorialVisible] = useState(true);
+  const [showTapFeedback, setShowTapFeedback] = useState(false);
+  const [tapFeedbackKey, setTapFeedbackKey] = useState(0);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const [cleaverAngle, setCleaverAngle] = useState(-25);
   const [cleaverFading, setCleaverFading] = useState(false);
-  /** Hide cleaver after impact fade so it does not reappear embedded in the fruit. */
   const [cleaverPostHitHide, setCleaverPostHitHide] = useState(false);
   const activeRunRef = useRef<ActiveRun | null>(null);
   const submittedSessionIdsRef = useRef(new Set<string>());
-  const lastTrackedFeedbackKeyRef = useRef(0);
+  const abandonedRef = useRef(false);
   const qaEnabled = isInputQaEnabled();
 
   const {
     state,
     startGame,
-    nextLevel,
     dropComplete,
+    advanceAfterFeedback,
     handlePointerDown,
     handlePointerMove,
+    handlePointerCancel,
     handlePointerUp,
-    finishGameOver,
+    finishRun,
   } = useGameEngine();
 
-  const startNewRun = useCallback((nextSessionId: string) => {
-    activeRunRef.current = {
-      sessionId: nextSessionId,
-      startedAt: Date.now(),
-      successfulHits: 0,
-      mistakes: 0,
+  const clearFeedbackTimer = useCallback(() => {
+    if (feedbackTimerRef.current !== null) {
+      window.clearTimeout(feedbackTimerRef.current);
+      feedbackTimerRef.current = null;
+    }
+  }, []);
+
+  const clearTapFeedbackTimer = useCallback(() => {
+    if (tapFeedbackTimerRef.current !== null) {
+      window.clearTimeout(tapFeedbackTimerRef.current);
+      tapFeedbackTimerRef.current = null;
+    }
+  }, []);
+
+  const startNewRun = useCallback(
+    (nextSessionId: string) => {
+      abandonedRef.current = false;
+      clearFeedbackTimer();
+      clearTapFeedbackTimer();
+      setShowTapFeedback(false);
+      setTapFeedbackKey(0);
+      setTutorialVisible(true);
+      setIsDragging(false);
+      pointerStartLocalRef.current = null;
+      activePointerIdRef.current = null;
+      activeRunRef.current = {
+        sessionId: nextSessionId,
+        startedAt: Date.now(),
+      };
+      submittedSessionIdsRef.current.clear();
+      startGame();
+    },
+    [clearFeedbackTimer, clearTapFeedbackTimer, startGame],
+  );
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      startNewRun(sessionId);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      clearFeedbackTimer();
+      clearTapFeedbackTimer();
     };
-    submittedSessionIdsRef.current.clear();
-    lastTrackedFeedbackKeyRef.current = 0;
-    startGame();
-  }, [startGame]);
+  }, [
+    sessionId,
+    startNewRun,
+    clearFeedbackTimer,
+    clearTapFeedbackTimer,
+  ]);
 
   useEffect(() => {
-    startNewRun(sessionId);
-  }, [sessionId, startNewRun]);
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, []);
 
-  useEffect(() => {
-    const run = activeRunRef.current;
-    if (
-      !run ||
-      state.cutFeedbackKey === 0 ||
-      state.cutFeedbackKey === lastTrackedFeedbackKeyRef.current
-    ) {
-      return;
-    }
-
-    lastTrackedFeedbackKeyRef.current = state.cutFeedbackKey;
-    if (state.lastCutQuality === "miss") {
-      run.mistakes += 1;
-    } else if (state.lastCutQuality) {
-      run.successfulHits += 1;
-    }
-  }, [state.cutFeedbackKey, state.lastCutQuality]);
-
-  const submitCurrentRun = useCallback(
-    (
-      score: number,
-      levelReached: number,
-      event: GameRunEvent,
-    ) => {
+  const submitCompletedRun = useCallback(
+    (event: GameRunEvent) => {
       const run = activeRunRef.current;
-      if (!run || !shouldSubmitGameResult(event, score)) return;
+      if (
+        abandonedRef.current ||
+        !run ||
+        state.attemptScores.length !== 3 ||
+        !shouldSubmitGameResult(event, state.totalScore)
+      ) {
+        return;
+      }
+
+      // Zero-point completed runs are valid locally but must not POST
+      // while the database check still requires score > 0.
+      if (state.totalScore <= 0) return;
 
       const result: GameScoreSubmission = {
         sessionId: run.sessionId,
         playerName,
-        score,
-        levelReached,
-        successfulHits: run.successfulHits,
-        mistakes: run.mistakes,
+        score: state.totalScore,
+        levelReached: 1,
+        successfulHits: state.successfulHits,
+        mistakes: state.mistakes,
         durationMs: Math.max(0, Date.now() - run.startedAt),
+        attemptScores: [
+          state.attemptScores[0] ?? 0,
+          state.attemptScores[1] ?? 0,
+          state.attemptScores[2] ?? 0,
+        ],
       };
 
       void submitGameResultOnce(
@@ -137,72 +194,105 @@ export function GameStage({
         if (response?.saved) onLeaderboardUpdated?.();
       });
     },
-    [onLeaderboardUpdated, playerName],
+    [
+      onLeaderboardUpdated,
+      playerName,
+      state.attemptScores,
+      state.mistakes,
+      state.successfulHits,
+      state.totalScore,
+    ],
   );
 
   useEffect(() => {
-    if (state.status !== "gameOver") return;
+    if (state.status !== "runComplete") return;
 
-    const best = finishGameOver();
+    const best = finishRun();
     queueMicrotask(() => setBestScore(best));
-    submitCurrentRun(state.score, state.level, "gameOver");
+    submitCompletedRun("gameOver");
+  }, [state.status, finishRun, submitCompletedRun]);
+
+  useEffect(() => {
+    if (state.cutFeedbackKey <= 0 || state.status !== "playing") return;
+
+    clearFeedbackTimer();
+    feedbackTimerRef.current = window.setTimeout(() => {
+      advanceAfterFeedback();
+    }, ATTEMPT_FEEDBACK_MS);
+
+    return clearFeedbackTimer;
   }, [
+    state.cutFeedbackKey,
     state.status,
-    state.score,
-    state.level,
-    finishGameOver,
-    submitCurrentRun,
+    advanceAfterFeedback,
+    clearFeedbackTimer,
   ]);
 
   useEffect(() => {
+    if (state.cutFeedbackKey <= 0) return;
     if (
-      state.lastCutQuality &&
-      state.lastCutQuality !== "miss" &&
-      state.cutFeedbackKey > 0
+      state.phase !== "resolving-attempt" &&
+      state.phase !== "showing-result"
     ) {
-      let secondFrame = 0;
-      const firstFrame = requestAnimationFrame(() => {
-        setBoardShake(0);
-        setCleaverPostHitHide(false);
-        setCleaverFading(true);
+      return;
+    }
+
+    const isHit = state.lastFruitScore > 0;
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      setBoardShake(0);
+      setCleaverPostHitHide(false);
+      setCleaverFading(true);
+      if (isHit) {
         secondFrame = requestAnimationFrame(() => {
           setBoardShake(state.cutFeedbackKey);
         });
-      });
-      const fadeTimer = window.setTimeout(() => {
-        setCleaverFading(false);
-        setCleaverPostHitHide(true);
-      }, 140);
-      return () => {
-        cancelAnimationFrame(firstFrame);
-        cancelAnimationFrame(secondFrame);
-        window.clearTimeout(fadeTimer);
-      };
-    }
-  }, [state.cutFeedbackKey, state.lastCutQuality]);
+      }
+    });
+    const fadeTimer = window.setTimeout(() => {
+      setCleaverFading(false);
+      setCleaverPostHitHide(true);
+    }, 140);
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+      window.clearTimeout(fadeTimer);
+    };
+  }, [state.cutFeedbackKey, state.lastFruitScore, state.phase]);
 
-  const toLocal = useCallback((clientX: number, clientY: number): Point | null => {
-    const stage = stageRef.current?.getBoundingClientRect();
-    if (!stage) return null;
-    return clientToLocal(clientX, clientY, stage);
-  }, []);
+  const toLocal = useCallback(
+    (clientX: number, clientY: number): Point | null => {
+      const stage = stageRef.current?.getBoundingClientRect();
+      if (!stage) return null;
+      return clientToLocal(clientX, clientY, stage);
+    },
+    [],
+  );
 
   const getRects = useCallback(() => {
     const stage = stageRef.current?.getBoundingClientRect();
     if (!stage) return { hitbox: null, fruitBody: null };
-    const hitEl = stageRef.current?.querySelector(
-      "[data-qa=coconut-hitbox]",
-    ) as HTMLElement | null;
     const bodyEl = stageRef.current?.querySelector(
       "[data-qa=fruit-body]",
     ) as HTMLElement | null;
+    const hitEl = stageRef.current?.querySelector(
+      "[data-qa=coconut-hitbox]",
+    ) as HTMLElement | null;
+    // Prefer the husk hitbox; fall back to the visible fruit body.
+    const fruitSource = hitEl ?? bodyEl;
+    const fruitBody = bodyEl
+      ? rectToLocal(bodyEl.getBoundingClientRect(), stage)
+      : null;
     return {
-      hitbox: hitEl ? rectToLocal(hitEl.getBoundingClientRect(), stage) : null,
-      fruitBody: bodyEl
-        ? rectToLocal(bodyEl.getBoundingClientRect(), stage)
+      hitbox: fruitSource
+        ? rectToLocal(fruitSource.getBoundingClientRect(), stage)
         : null,
+      fruitBody,
     };
   }, []);
+
+  const inputLocked =
+    state.phase !== "ready" || state.status !== "playing";
 
   const updatePointer = useCallback(
     (clientX: number, clientY: number, pointerType: string) => {
@@ -210,8 +300,9 @@ export function GameStage({
       if (!local) return;
       setClientPoint({ x: clientX, y: clientY });
       if (qaEnabled && typeof window !== "undefined") {
-        (window as Window & { __lastPointerClient?: Point }).__lastPointerClient =
-          { x: clientX, y: clientY };
+        (
+          window as Window & { __lastPointerClient?: Point }
+        ).__lastPointerClient = { x: clientX, y: clientY };
       }
       setPointerLocal(local);
       if (lastPointerLocal.current) {
@@ -241,92 +332,199 @@ export function GameStage({
     }
   }, []);
 
+  const showTapDragInstruction = useCallback(() => {
+    clearTapFeedbackTimer();
+    setShowTapFeedback(true);
+    setTapFeedbackKey((key) => key + 1);
+    tapFeedbackTimerRef.current = window.setTimeout(() => {
+      setShowTapFeedback(false);
+      tapFeedbackTimerRef.current = null;
+    }, 1_200);
+  }, [clearTapFeedbackTimer]);
+
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (state.status !== "playing" || state.isDropping) return;
+      if (inputLocked || state.isDropping) return;
+      e.preventDefault();
       isPointerDown.current = true;
+      activePointerIdRef.current = e.pointerId;
+      setIsDragging(false);
       setCleaverFading(false);
       setCleaverPostHitHide(false);
-      cuttingZoneRef.current?.setPointerCapture(e.pointerId);
+      try {
+        cuttingZoneRef.current?.setPointerCapture(e.pointerId);
+      } catch {
+        // Capture can fail if the pointer was already released.
+      }
       updatePointer(e.clientX, e.clientY, e.pointerType);
       const local = toLocal(e.clientX, e.clientY);
+      pointerStartLocalRef.current = local;
       if (local) handlePointerDown(local);
     },
-    [state.status, state.isDropping, updatePointer, toLocal, handlePointerDown],
+    [
+      inputLocked,
+      state.isDropping,
+      updatePointer,
+      toLocal,
+      handlePointerDown,
+    ],
   );
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
       updatePointer(e.clientX, e.clientY, e.pointerType);
-      if (!isPointerDown.current) return;
+      if (!isPointerDown.current || inputLocked) return;
       const local = toLocal(e.clientX, e.clientY);
-      if (local) handlePointerMove(local);
+      if (local) {
+        const start = pointerStartLocalRef.current;
+        if (start && getSwipeLength(start, local) >= MIN_SWIPE_LENGTH) {
+          setIsDragging(true);
+        }
+        handlePointerMove(local);
+      }
     },
-    [updatePointer, toLocal, handlePointerMove],
+    [updatePointer, toLocal, handlePointerMove, inputLocked],
   );
+
+  const releaseCapture = useCallback((pointerId: number) => {
+    const zone = cuttingZoneRef.current;
+    if (!zone) return;
+    try {
+      if (zone.hasPointerCapture(pointerId)) {
+        zone.releasePointerCapture(pointerId);
+      }
+    } catch {
+      // Ignore release races on unmount / cancelled pointers.
+    }
+  }, []);
 
   const onPointerUp = useCallback(
     (e: React.PointerEvent) => {
       const wasDown = isPointerDown.current;
       isPointerDown.current = false;
-      if (cuttingZoneRef.current?.hasPointerCapture(e.pointerId)) {
-        cuttingZoneRef.current.releasePointerCapture(e.pointerId);
-      }
+      releaseCapture(e.pointerId);
+      activePointerIdRef.current = null;
+      setIsDragging(false);
       if (e.pointerType === "touch") {
         setTouchActive(false);
         setPointerLocal(null);
         lastPointerLocal.current = null;
       }
-      if (!wasDown) return;
+      if (!wasDown || inputLocked) {
+        pointerStartLocalRef.current = null;
+        return;
+      }
       const local = toLocal(e.clientX, e.clientY);
-      if (!local) return;
+      const start = pointerStartLocalRef.current;
+      pointerStartLocalRef.current = null;
+      if (!local || !start) {
+        handlePointerCancel();
+        return;
+      }
+      const swipeLength = getSwipeLength(start, local);
+      if (swipeLength < MIN_SWIPE_LENGTH) {
+        // Clear the engine gesture without consuming an attempt, then teach.
+        handlePointerUp(local, null, null);
+        showTapDragInstruction();
+        return;
+      }
+      clearTapFeedbackTimer();
+      setShowTapFeedback(false);
+      setTutorialVisible(false);
+      // Fresh query after each attempt so fruit 2/3 refs stay valid.
       const { hitbox, fruitBody } = getRects();
       handlePointerUp(local, hitbox, fruitBody);
     },
-    [toLocal, getRects, handlePointerUp],
+    [
+      toLocal,
+      getRects,
+      handlePointerUp,
+      handlePointerCancel,
+      inputLocked,
+      releaseCapture,
+      showTapDragInstruction,
+      clearTapFeedbackTimer,
+    ],
   );
+
+  const onPointerCancel = useCallback(
+    (e: React.PointerEvent) => {
+      isPointerDown.current = false;
+      activePointerIdRef.current = null;
+      pointerStartLocalRef.current = null;
+      lastPointerLocal.current = null;
+      setIsDragging(false);
+      setTouchActive(false);
+      setPointerLocal(null);
+      releaseCapture(e.pointerId);
+      handlePointerCancel();
+    },
+    [handlePointerCancel, releaseCapture],
+  );
+
+  useEffect(() => {
+    const zone = cuttingZoneRef.current;
+    return () => {
+      const pointerId = activePointerIdRef.current;
+      if (zone && pointerId !== null) {
+        try {
+          if (zone.hasPointerCapture(pointerId)) {
+            zone.releasePointerCapture(pointerId);
+          }
+        } catch {
+          // The browser may already have cancelled this pointer.
+        }
+      }
+      activePointerIdRef.current = null;
+      pointerStartLocalRef.current = null;
+      isPointerDown.current = false;
+    };
+  }, []);
 
   const handlePlayAgain = () => {
     startNewRun(createGameSessionId());
   };
 
   const handleExit = () => {
-    submitCurrentRun(state.score, state.level, "exit");
-    onExit?.(state.score);
+    abandonedRef.current = state.status !== "runComplete";
+    clearFeedbackTimer();
+    clearTapFeedbackTimer();
+    setShowTapFeedback(false);
+    handlePointerCancel();
+    isPointerDown.current = false;
+    pointerStartLocalRef.current = null;
+    // Incomplete runs must not submit. Completed runs already submitted on finish.
+    if (state.status === "runComplete") {
+      // no-op — already submitted once
+    }
+    onExit?.(state.totalScore);
   };
 
-  const showProgressPop = useMemo(
-    () =>
-      Boolean(
-        state.lastCutQuality &&
-          state.lastCutQuality !== "miss" &&
-          state.lastDamage > 0 &&
-          state.lastHitPoint,
-      ),
-    [state.lastCutQuality, state.lastDamage, state.lastHitPoint],
-  );
+  const showScorePop =
+    state.cutFeedbackKey > 0 &&
+    (state.phase === "resolving-attempt" ||
+      state.phase === "showing-result");
 
   const showMiss =
-    state.lastCutQuality === "miss" && state.cutFeedbackKey > 0;
+    state.lastFruitScore === 0 &&
+    state.cutFeedbackKey > 0 &&
+    showScorePop;
 
   const particleQuality =
-    state.lastCutQuality === "miss" ? null : state.lastCutQuality;
+    state.lastFruitScore >= 800
+      ? "clean"
+      : state.lastFruitScore >= 400
+        ? "edge"
+        : state.lastFruitScore > 0
+          ? "weak"
+          : null;
 
-  const hitShakeKey =
-    state.lastCutQuality && state.lastCutQuality !== "miss"
-      ? state.cutFeedbackKey
-      : 0;
-
+  const hitShakeKey = state.lastFruitScore > 0 ? state.cutFeedbackKey : 0;
   const impactPoint = state.lastHitPoint;
-
   const [popAnchor, setPopAnchor] = useState<Point | null>(null);
 
   useLayoutEffect(() => {
-    if (
-      !showProgressPop ||
-      !impactPoint ||
-      !stageRef.current
-    ) {
+    if (!showScorePop || !stageRef.current) {
       setPopAnchor(null);
       return;
     }
@@ -339,14 +537,15 @@ export function GameStage({
     const hitEl = stageEl.querySelector(
       "[data-qa=coconut-hitbox]",
     ) as HTMLElement | null;
-    const barEl = stageEl.querySelector(
-      "[data-qa=cut-progress-bar]",
-    ) as HTMLElement | null;
 
     const fruitVisualEl =
       (bodyEl?.querySelector("svg") as HTMLElement | null) ?? bodyEl;
     if (!fruitVisualEl) {
-      setPopAnchor({ x: impactPoint.x, y: impactPoint.y - 28 });
+      setPopAnchor(
+        impactPoint
+          ? { x: impactPoint.x, y: impactPoint.y - 28 }
+          : { x: stage.width / 2, y: stage.height * 0.42 },
+      );
       return;
     }
 
@@ -354,91 +553,34 @@ export function GameStage({
       fruitVisualEl.getBoundingClientRect(),
       stage,
     );
-    // Hitbox top tracks the green body better than the rotated SVG AABB.
     const fruitTop = hitEl
       ? rectToLocal(hitEl.getBoundingClientRect(), stage).top
       : fruitVisual.top;
 
-    const padX = 36;
-    const padY = 28;
-    const popHalfW = 36;
-    const popH = 20;
-
-    let x = impactPoint.x;
-    // Bottom of pop = fruitVisualRect.top - 28 (ProgressPop uses translate -100%)
-    let y = fruitTop - 28;
-
-    if (barEl) {
-      const bar = rectToLocal(barEl.getBoundingClientRect(), stage);
-      const barBottom = bar.top + bar.height + 6;
-      if (y - popH < barBottom + 4) {
-        y = barBottom + popH + 4;
-      }
-    }
-
-    y = Math.min(y, fruitTop - 12);
-    y = Math.max(padY, y);
+    const padX = 48;
+    // Misses often land off-fruit — keep feedback above the Mishli, clear of HUD.
+    const preferFruitCentre = state.lastFruitScore === 0;
+    let x = preferFruitCentre
+      ? fruitVisual.left + fruitVisual.width / 2
+      : (impactPoint?.x ?? fruitVisual.left + fruitVisual.width / 2);
+    let y = fruitTop - 40;
+    y = Math.max(88, Math.min(y, stage.height * 0.42));
     x = Math.min(Math.max(x, padX), stage.width - padX);
-    x = Math.min(Math.max(x, popHalfW), stage.width - popHalfW);
-
     setPopAnchor({ x, y });
-  }, [showProgressPop, impactPoint, state.cutFeedbackKey]);
+  }, [showScorePop, impactPoint, state.cutFeedbackKey, state.lastFruitScore]);
 
-  /* Existing pointer geometry intentionally reads the mounted stage during render. */
-  /* eslint-disable react-hooks/refs */
   const cleaverPos = useMemo(() => {
-    // Pointer follow stays exact for alignment QA; only impact-fade pose is offset.
-    if (!(impactPoint && cleaverFading)) {
-      return pointerLocal ?? impactPoint;
-    }
-    if (!stageRef.current) return impactPoint;
-
-    const bodyEl = stageRef.current.querySelector(
-      "[data-qa=fruit-body]",
-    ) as HTMLElement | null;
-    const visualEl =
-      (bodyEl?.querySelector("svg") as HTMLElement | null) ?? bodyEl;
-    if (!visualEl) return impactPoint;
-
-    const stage = stageRef.current.getBoundingClientRect();
-    const fruit = rectToLocal(visualEl.getBoundingClientRect(), stage);
-    const fx = fruit.left + fruit.width / 2;
-    const fy = fruit.top + fruit.height / 2;
-    let dx = impactPoint.x - fx;
-    let dy = impactPoint.y - fy;
-    let len = Math.hypot(dx, dy);
-    if (len < 1) {
-      const rad =
-        (((state.lastSwipeAngle ?? cleaverAngle) * Math.PI) / 180);
-      dx = Math.cos(rad);
-      dy = Math.sin(rad);
-      len = 1;
-    } else {
-      dx /= len;
-      dy /= len;
-    }
-
-    // Keep blade edge near the impact; pull outward so the handle stays outside.
-    const pullOut = CLEAVER_RENDER_SIZE * 0.34;
-    return {
-      x: impactPoint.x + dx * pullOut,
-      y: impactPoint.y + dy * pullOut,
-    };
-  }, [
-    impactPoint,
-    cleaverFading,
-    pointerLocal,
-    cleaverAngle,
-    state.lastSwipeAngle,
-  ]);
-  /* eslint-enable react-hooks/refs */
+    // GameplayCleaver positions its blade anchor at x/y, so impact needs no offset.
+    if (impactPoint && cleaverFading) return impactPoint;
+    return pointerLocal ?? impactPoint;
+  }, [impactPoint, cleaverFading, pointerLocal]);
 
   const showCleaver =
     Boolean(cleaverPos) &&
     (cleaverFading ||
       ((mouseInZone || touchActive) && !cleaverPostHitHide)) &&
     state.status === "playing" &&
-    !state.isDropping;
+    (cleaverFading || !state.isDropping);
 
   const cleaverVisibleAngle =
     state.lastSwipeAngle && cleaverFading
@@ -487,49 +629,72 @@ export function GameStage({
     );
   }, [qaEnabled, clientPoint]);
 
-  const reducedMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const cutTarget = getFruitTarget(state.attemptIndex);
+  const showFruit =
+    state.status === "playing" || state.status === "runComplete";
 
   return (
     <div
       ref={stageRef}
       data-qa="game-stage"
-      className="relative mx-auto min-h-svh w-full touch-pan-y"
+      data-phase={state.phase}
+      data-attempt-count={state.attemptScores.length}
+      data-attempt-index={state.attemptIndex}
+      data-impact-x={state.lastHitPoint?.x ?? ""}
+      data-impact-y={state.lastHitPoint?.y ?? ""}
+      className="relative mx-auto min-h-svh w-full touch-none overscroll-none"
     >
       <DhofarFruitStallBackground />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <div className="flex items-start justify-between gap-2">
-          <MissCounter missCount={state.missCount} maxMisses={state.maxMisses} />
-          <LevelBadge level={state.level} />
-          <ScoreBoard score={state.score} />
+      <div
+        data-qa="game-hud"
+        className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-[max(1.1rem,env(safe-area-inset-top))]"
+      >
+        {/* LTR row: score physical left, cuts physical right — independent of page RTL */}
+        <div dir="ltr" className="flex items-start justify-between gap-2">
+          <ScoreBoard score={state.totalScore} />
+          <AttemptCutsCard
+            attemptScores={state.attemptScores}
+            activeAttempt={state.attemptIndex}
+            phase={state.phase}
+          />
         </div>
       </div>
 
+      {state.status === "playing" &&
+        state.attemptIndex === 0 &&
+        state.phase === "ready" &&
+        (tutorialVisible || showTapFeedback) && (
+          <div className="pointer-events-none absolute inset-x-0 top-[6rem] z-[29] mx-auto w-[calc(100%-3rem)] max-w-[20rem]">
+            <SwipeGestureHint
+              mode={showTapFeedback ? "tap-feedback" : "tutorial"}
+              shakeKey={tapFeedbackKey}
+            />
+          </div>
+        )}
+
       <WoodenCuttingTable
         boardShake={boardShake > 0}
-        progress={<CutProgress progress={state.cutProgress} />}
         cuttingZoneRef={cuttingZoneRef}
         cuttingZoneProps={{
-          className: mouseInZone ? "cursor-none" : "",
+          className: isDragging ? "cursor-grabbing" : "cursor-grab",
           onPointerEnter: onZonePointerEnter,
           onPointerLeave: onZonePointerLeave,
           onPointerDown,
           onPointerMove,
           onPointerUp,
-          onPointerCancel: onPointerUp,
+          onPointerCancel,
         }}
       >
-        {(state.status === "playing" || state.status === "levelComplete") && (
+        {showFruit && state.status === "playing" && (
           <TableMishli
-            cutProgress={state.cutProgress}
             isSplitting={state.isDropping}
-            keepHalves={state.status === "levelComplete" && !state.isDropping}
             onSplitComplete={dropComplete}
             hitShakeKey={hitShakeKey}
             scale={state.coconutScale}
             hitMarks={state.mishliHitMarks}
+            cutTarget={cutTarget}
+            showCutTarget={state.phase === "ready"}
           />
         )}
       </WoodenCuttingTable>
@@ -559,7 +724,7 @@ export function GameStage({
           origin={impactPoint}
           angle={state.lastSwipeAngle}
           streakKey={state.cutFeedbackKey}
-          visible={showProgressPop}
+          visible={state.lastFruitScore > 0 && showScorePop}
         />
 
         <CutParticles
@@ -568,9 +733,10 @@ export function GameStage({
           quality={particleQuality}
         />
 
-        <ProgressPop
-          amount={state.lastDamage}
-          visible={showProgressPop}
+        <AttemptScorePop
+          score={state.lastFruitScore}
+          label={state.lastQualityLabel}
+          visible={showScorePop}
           popKey={state.cutFeedbackKey}
           anchor={popAnchor}
         />
@@ -588,19 +754,13 @@ export function GameStage({
         />
       )}
 
-      <LevelCompleteModal
-        open={state.status === "levelComplete" && !state.isDropping}
-        level={state.level}
-        bonus={state.levelCompleteBonus}
-        onNext={nextLevel}
-      />
-
-      <GameOverModal
-        open={state.status === "gameOver"}
-        score={state.score}
+      <FinalRunModal
+        open={state.status === "runComplete"}
+        totalScore={state.totalScore}
         bestScore={Math.max(bestScore, state.bestScore)}
-        level={state.level}
+        attemptScores={state.attemptScores}
         onPlayAgain={handlePlayAgain}
+        onExit={onExit ? handleExit : undefined}
       />
     </div>
   );

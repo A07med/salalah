@@ -290,6 +290,22 @@ body {
   }
 }
 
+@keyframes swipe-gesture {
+  0%,
+  100% {
+    transform: translateX(-28px) rotate(-5deg);
+    opacity: 0.55;
+  }
+  45% {
+    transform: translateX(28px) rotate(4deg);
+    opacity: 1;
+  }
+  70% {
+    transform: translateX(28px) rotate(4deg);
+    opacity: 0.2;
+  }
+}
+
 @keyframes miss-flash {
   0% {
     opacity: 0.45;
@@ -365,6 +381,11 @@ body {
 
 .animate-screen-shake {
   animation: screen-shake 0.28s ease-out;
+}
+
+.animate-swipe-gesture {
+  animation: swipe-gesture 1.35s ease-in-out infinite;
+  transform-origin: center;
 }
 
 .animate-miss-flash {

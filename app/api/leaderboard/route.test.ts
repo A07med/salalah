@@ -27,11 +27,12 @@ import { GET, POST } from "./route";
 const submission = {
   sessionId: "550e8400-e29b-41d4-a716-446655440000",
   playerName: "أحمد العبري",
-  score: 5960,
-  levelReached: 4,
-  successfulHits: 28,
-  mistakes: 1,
+  score: 2450,
+  levelReached: 1,
+  successfulHits: 3,
+  mistakes: 0,
   durationMs: 83_000,
+  attemptScores: [875, 920, 655],
 };
 
 describe("/api/leaderboard", () => {

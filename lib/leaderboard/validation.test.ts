@@ -8,15 +8,16 @@ import {
 const validSubmission = {
   sessionId: "550e8400-e29b-41d4-a716-446655440000",
   playerName: "أحمد العبري",
-  score: 5960,
-  levelReached: 4,
-  successfulHits: 28,
-  mistakes: 1,
+  score: 2450,
+  levelReached: 1 as const,
+  successfulHits: 3,
+  mistakes: 0,
   durationMs: 83_000,
+  attemptScores: [875, 920, 655] as [number, number, number],
 };
 
 describe("validateScoreSubmission", () => {
-  it("accepts and normalizes a valid submission", () => {
+  it("accepts and normalizes a valid v2 submission", () => {
     const result = validateScoreSubmission({
       ...validSubmission,
       playerName: "  Ahmed   ALI  ",
@@ -27,6 +28,8 @@ describe("validateScoreSubmission", () => {
       data: {
         playerName: "Ahmed ALI",
         normalizedName: "ahmed ali",
+        scoreVersion: 2,
+        score: 2450,
       },
     });
   });
@@ -36,15 +39,14 @@ describe("validateScoreSubmission", () => {
     ["negative score", { score: -1 }],
     ["NaN score", { score: Number.NaN }],
     ["floating score", { score: 10.5 }],
-    ["excessive score", { score: 10_000_001 }],
+    ["score above 3000", { score: 3001, attemptScores: [1000, 1000, 1000] }],
     ["negative hits", { successfulHits: -1 }],
     ["floating hits", { successfulHits: 1.5 }],
     ["negative mistakes", { mistakes: -1 }],
     ["floating mistakes", { mistakes: 1.5 }],
     ["floating duration", { durationMs: 1.5 }],
-    ["excessive level", { levelReached: 1_001 }],
-    ["floating level", { levelReached: 1.5 }],
-    ["zero score", { score: 0 }],
+    ["non-literal level", { levelReached: 2 }],
+    ["zero score", { score: 0, attemptScores: [0, 0, 0] }],
     ["empty name", { playerName: "   " }],
     ["overlong name", { playerName: "أ".repeat(21) }],
   ])("rejects %s", (_label, patch) => {
@@ -77,13 +79,34 @@ describe("validateScoreSubmission", () => {
     ).toBe(false);
   });
 
-  it("rejects obviously impossible score telemetry", () => {
+  it("rejects attempt-score sum mismatches", () => {
     expect(
       validateScoreSubmission({
         ...validSubmission,
-        score: 1_000_000,
-        successfulHits: 1,
-        levelReached: 1,
+        score: 2000,
+        attemptScores: [875, 920, 655],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects scores above 1000 on a single attempt", () => {
+    expect(
+      validateScoreSubmission({
+        ...validSubmission,
+        score: 3000,
+        attemptScores: [1001, 1000, 999],
+        successfulHits: 3,
+        mistakes: 0,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects hit/miss counts that disagree with attempt scores", () => {
+    expect(
+      validateScoreSubmission({
+        ...validSubmission,
+        successfulHits: 2,
+        mistakes: 1,
       }).success,
     ).toBe(false);
   });

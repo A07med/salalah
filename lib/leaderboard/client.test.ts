@@ -10,11 +10,12 @@ import type { GameScoreSubmission } from "./types";
 const result: GameScoreSubmission = {
   sessionId: "550e8400-e29b-41d4-a716-446655440000",
   playerName: "أحمد العبري",
-  score: 5960,
-  levelReached: 4,
-  successfulHits: 28,
-  mistakes: 1,
+  score: 2450,
+  levelReached: 1,
+  successfulHits: 3,
+  mistakes: 0,
   durationMs: 83_000,
+  attemptScores: [875, 920, 655],
 };
 
 describe("client score submission", () => {
@@ -51,7 +52,7 @@ describe("client score submission", () => {
   it("does not submit zero-score runs", async () => {
     const submitter = vi.fn();
     await submitGameResultOnce(
-      { ...result, score: 0 },
+      { ...result, score: 0, attemptScores: [0, 0, 0] },
       new Set(),
       submitter,
     );

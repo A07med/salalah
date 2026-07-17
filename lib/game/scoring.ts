@@ -3,18 +3,21 @@ import {
   getSwipeLength,
 } from "./collision";
 import { MIN_SWIPE_LENGTH } from "./constants";
-import type { CutQuality, Point } from "./types";
+import type { Point } from "./types";
+
+/** @deprecated Legacy multi-hit quality label — retained for collision QA scripts. */
+type LegacyCutQuality = "clean" | "edge" | "weak" | "miss";
 
 /**
- * Tuned so Level 1 usually needs ~5–7 solid swipes to reach 100%.
- * Clean ~16–18%, edge ~12–14%, weak ~7–9%.
+ * @deprecated Prefer `calculateFruitScore` for the three-Mishli run.
+ * Kept for offline collision QA scripts that still probe damage geometry.
  */
 export function calculateCutDamage(
   start: Point,
   end: Point,
   coconutRect: DOMRect,
   damageMultiplier: number,
-): { damage: number; quality: CutQuality } {
+): { damage: number; quality: LegacyCutQuality } {
   const length = getSwipeLength(start, end);
 
   if (length < MIN_SWIPE_LENGTH) {
@@ -32,7 +35,7 @@ export function calculateCutDamage(
   const lengthFactor = Math.min(length / 140, 1);
 
   let damage = (9 + proximity * 12) * lengthFactor * damageMultiplier;
-  let quality: CutQuality = "edge";
+  let quality: LegacyCutQuality = "edge";
 
   if (proximity > 0.6 && length > 70) {
     damage = Math.max(damage, 17 * damageMultiplier);
@@ -49,26 +52,4 @@ export function calculateCutDamage(
     damage: Math.round(damage * 10) / 10,
     quality,
   };
-}
-
-export function calculateSlashScore(
-  damage: number,
-  level: number,
-  quality: CutQuality,
-): number {
-  let points = Math.round(damage * 10);
-  points += level * 5;
-
-  if (quality === "clean") points += 50;
-  else if (quality === "edge") points += 15;
-
-  return points;
-}
-
-export function calculateLevelCompleteBonus(level: number): number {
-  return 100 + level * 50;
-}
-
-export function calculateMissPenalty(): number {
-  return 20;
 }

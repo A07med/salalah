@@ -4,6 +4,7 @@ import { asc, desc, eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { mishliGameScores } from "@/db/schema";
+import { CURRENT_SCORE_VERSION } from "@/lib/game/scoreVersion";
 
 import type { GlobalLeaderboardEntry } from "./types";
 import type { ValidatedGameScore } from "./validation";
@@ -20,7 +21,17 @@ export async function submitGameScore(
 ): Promise<void> {
   const inserted = await getDb()
     .insert(mishliGameScores)
-    .values(result)
+    .values({
+      sessionId: result.sessionId,
+      playerName: result.playerName,
+      normalizedName: result.normalizedName,
+      score: result.score,
+      levelReached: result.levelReached,
+      successfulHits: result.successfulHits,
+      mistakes: result.mistakes,
+      durationMs: result.durationMs,
+      scoreVersion: CURRENT_SCORE_VERSION,
+    })
     .onConflictDoNothing({
       target: mishliGameScores.sessionId,
     })
@@ -56,6 +67,7 @@ export async function getGlobalLeaderboard(
       createdAt: mishliGameScores.createdAt,
     })
     .from(mishliGameScores)
+    .where(eq(mishliGameScores.scoreVersion, CURRENT_SCORE_VERSION))
     .orderBy(
       mishliGameScores.normalizedName,
       desc(mishliGameScores.score),

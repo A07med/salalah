@@ -3,66 +3,45 @@
 import { useCallback, useReducer } from "react";
 import {
   getSegmentImpactPoint,
+  getSwipeLength,
   lineIntersectsRect,
 } from "@/lib/game/collision";
 import { swipeAngleDeg } from "@/lib/game/coordinates";
-import { calculateDifficulty } from "@/lib/game/difficulty";
-import { addHitMark, normalizeImpactToMark } from "@/lib/game/hitMarks";
+import { getFruitTarget } from "@/lib/game/cutTargets";
 import {
-  calculateCutDamage,
-  calculateLevelCompleteBonus,
-  calculateMissPenalty,
-  calculateSlashScore,
-} from "@/lib/game/scoring";
+  calculateFruitScore,
+  getQualityLabel,
+} from "@/lib/game/fruitScore";
+import { normalizeImpactToMark } from "@/lib/game/hitMarks";
+import { MIN_SWIPE_LENGTH } from "@/lib/game/constants";
+import { ATTEMPTS_PER_RUN } from "@/lib/game/scoreVersion";
 import { getLocalBestScore, saveLocalBestScore } from "@/lib/game/storage";
-import type { GameAction, GameState, Point } from "@/lib/game/types";
-
-function applyDifficulty(state: GameState, level: number): GameState {
-  const config = calculateDifficulty(level);
-  return {
-    ...state,
-    level,
-    cutProgress: 0,
-    missCount: 0,
-    maxMisses: config.maxMisses,
-    swingAmplitude: config.swingAmplitude,
-    swingSpeed: config.swingSpeed,
-    coconutScale: config.coconutScale,
-    isDropping: false,
-    activeSlash: null,
-    slashLines: [],
-    lastCutQuality: null,
-    lastDamage: 0,
-    lastHitPoint: null,
-    lastSwipeAngle: 0,
-    mishliHitMarks: [],
-    levelCompleteBonus: 0,
-  };
-}
+import type {
+  AttemptIndex,
+  GameAction,
+  GameState,
+  Point,
+} from "@/lib/game/types";
 
 function createInitialState(): GameState {
-  const config = calculateDifficulty(1);
   return {
     status: "idle",
-    level: 1,
-    score: 0,
-    cutProgress: 0,
-    missCount: 0,
-    maxMisses: config.maxMisses,
-    swingAmplitude: config.swingAmplitude,
-    swingSpeed: config.swingSpeed,
-    coconutScale: config.coconutScale,
-    slashLines: [],
+    phase: "ready",
+    attemptIndex: 0,
+    attemptScores: [],
+    totalScore: 0,
+    successfulHits: 0,
+    mistakes: 0,
+    coconutScale: 1,
     activeSlash: null,
     isDropping: false,
-    lastCutQuality: null,
-    lastDamage: 0,
+    lastFruitScore: 0,
+    lastQualityLabel: "",
     lastHitPoint: null,
     lastSwipeAngle: 0,
     mishliHitMarks: [],
     cutFeedbackKey: 0,
     bestScore: 0,
-    levelCompleteBonus: 0,
   };
 }
 
@@ -72,15 +51,13 @@ function midPoint(a: Point, b: Point): Point {
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
-    case "START_GAME": {
-      const fresh = applyDifficulty(createInitialState(), 1);
+    case "START_GAME":
       return {
-        ...fresh,
+        ...createInitialState(),
         status: "playing",
-        score: 0,
+        phase: "ready",
         bestScore: getLocalBestScore(),
       };
-    }
 
     case "RESET_TO_IDLE":
       return {
@@ -89,118 +66,96 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
 
     case "POINTER_DOWN":
-      if (state.status !== "playing" || state.isDropping) return state;
+      if (
+        state.status !== "playing" ||
+        state.phase !== "ready" ||
+        state.isDropping
+      ) {
+        return state;
+      }
       return {
         ...state,
         activeSlash: { start: action.point, end: action.point },
       };
 
     case "POINTER_MOVE":
-      if (!state.activeSlash || state.status !== "playing") return state;
+      if (!state.activeSlash || state.phase !== "ready") return state;
       return {
         ...state,
         activeSlash: { ...state.activeSlash, end: action.point },
       };
 
+    case "POINTER_CANCEL":
+      return { ...state, activeSlash: null };
+
     case "POINTER_UP": {
-      if (!state.activeSlash || state.status !== "playing" || state.isDropping) {
+      if (
+        !state.activeSlash ||
+        state.status !== "playing" ||
+        state.phase !== "ready" ||
+        state.isDropping
+      ) {
         return { ...state, activeSlash: null };
       }
 
       const { start } = state.activeSlash;
       const end = action.point;
-      const config = calculateDifficulty(state.level);
-      const feedbackKey = state.cutFeedbackKey + 1;
+      const length = getSwipeLength(start, end);
+
+      // Tiny taps / accidental jitter must not consume an attempt.
+      if (length < MIN_SWIPE_LENGTH) {
+        return { ...state, activeSlash: null };
+      }
+
       const angle = swipeAngleDeg(start, end);
+      const feedbackKey = state.cutFeedbackKey + 1;
+      const target = getFruitTarget(state.attemptIndex);
+      const hit =
+        Boolean(action.coconutRect) &&
+        lineIntersectsRect(start, end, action.coconutRect!);
 
-      if (!action.coconutRect) {
-        return {
-          ...state,
-          activeSlash: null,
-          missCount: state.missCount + 1,
-          lastCutQuality: "miss",
-          lastDamage: 0,
-          lastHitPoint: midPoint(start, end),
-          lastSwipeAngle: angle,
-          cutFeedbackKey: feedbackKey,
-          score: Math.max(0, state.score - calculateMissPenalty()),
-          status:
-            state.missCount + 1 >= state.maxMisses ? "gameOver" : state.status,
-        };
-      }
+      const impactPoint = hit
+        ? getSegmentImpactPoint(start, end, action.coconutRect!)
+        : null;
 
-      const hit = lineIntersectsRect(start, end, action.coconutRect);
-
-      if (!hit) {
-        const newMissCount = state.missCount + 1;
-        const gameOver = newMissCount >= state.maxMisses;
-        const nextState: GameState = {
-          ...state,
-          activeSlash: null,
-          missCount: newMissCount,
-          lastCutQuality: "miss",
-          lastDamage: 0,
-          lastHitPoint: midPoint(start, end),
-          lastSwipeAngle: angle,
-          cutFeedbackKey: feedbackKey,
-          score: Math.max(0, state.score - calculateMissPenalty()),
-          status: gameOver ? "gameOver" : state.status,
-        };
-        if (gameOver) {
-          nextState.bestScore = saveLocalBestScore(nextState.score);
-        }
-        return nextState;
-      }
-
-      const { damage, quality } = calculateCutDamage(
+      const breakdown = calculateFruitScore({
         start,
         end,
-        action.coconutRect,
-        config.damageMultiplier,
-      );
-      const impactPoint = getSegmentImpactPoint(start, end, action.coconutRect);
-      const newProgress = Math.min(100, state.cutProgress + damage);
-      const slashScore = calculateSlashScore(damage, state.level, quality);
+        fruitRect: action.coconutRect ?? new DOMRect(),
+        target,
+        impactPoint,
+        hit,
+      });
 
-      let mishliHitMarks = state.mishliHitMarks;
-      if (impactPoint && action.fruitBodyRect) {
-        const mark = normalizeImpactToMark(
-          impactPoint,
-          action.fruitBodyRect,
-          angle,
-          String(feedbackKey),
-        );
-        mishliHitMarks = addHitMark(state.mishliHitMarks, mark);
-      }
-
+      const fruitScore = breakdown.score;
+      const nextScores = [...state.attemptScores, fruitScore];
       const hitPoint = impactPoint ?? midPoint(start, end);
 
-      if (newProgress >= 100) {
-        const bonus = calculateLevelCompleteBonus(state.level);
-        return {
-          ...state,
-          activeSlash: null,
-          cutProgress: 100,
-          score: state.score + slashScore + bonus,
-          lastCutQuality: quality,
-          lastDamage: damage,
-          lastHitPoint: hitPoint,
-          lastSwipeAngle: angle,
-          mishliHitMarks,
-          cutFeedbackKey: feedbackKey,
-          status: "levelComplete",
-          isDropping: true,
-          levelCompleteBonus: bonus,
-        };
+      let mishliHitMarks = state.mishliHitMarks;
+      if (hit && impactPoint && action.fruitBodyRect) {
+        mishliHitMarks = [
+          normalizeImpactToMark(
+            impactPoint,
+            action.fruitBodyRect,
+            angle,
+            String(feedbackKey),
+          ),
+        ];
+      } else {
+        mishliHitMarks = [];
       }
 
       return {
         ...state,
         activeSlash: null,
-        cutProgress: newProgress,
-        score: state.score + slashScore,
-        lastCutQuality: quality,
-        lastDamage: damage,
+        phase: "resolving-attempt",
+        attemptScores: nextScores,
+        totalScore: nextScores.reduce((sum, value) => sum + value, 0),
+        successfulHits: state.successfulHits + (fruitScore > 0 ? 1 : 0),
+        mistakes: state.mistakes + (fruitScore === 0 ? 1 : 0),
+        isDropping: hit,
+        lastFruitScore: fruitScore,
+        lastQualityLabel: getQualityLabel(fruitScore),
         lastHitPoint: hitPoint,
         lastSwipeAngle: angle,
         mishliHitMarks,
@@ -208,22 +163,49 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
-    case "NEXT_LEVEL": {
-      const nextLevel = state.level + 1;
+    case "ADVANCE_AFTER_FEEDBACK": {
+      if (
+        state.status !== "playing" ||
+        (state.phase !== "resolving-attempt" &&
+          state.phase !== "showing-result")
+      ) {
+        return state;
+      }
+
+      if (state.attemptScores.length >= ATTEMPTS_PER_RUN) {
+        return {
+          ...state,
+          status: "runComplete",
+          phase: "run-complete",
+          isDropping: false,
+          activeSlash: null,
+          mishliHitMarks: [],
+        };
+      }
+
+      const nextIndex = state.attemptScores.length as AttemptIndex;
       return {
-        ...applyDifficulty(state, nextLevel),
-        status: "playing",
-        score: state.score,
-        bestScore: state.bestScore,
-        cutFeedbackKey: state.cutFeedbackKey,
+        ...state,
+        phase: "ready",
+        attemptIndex: nextIndex,
+        isDropping: false,
+        activeSlash: null,
+        mishliHitMarks: [],
+        lastHitPoint: null,
+        lastFruitScore: 0,
+        lastQualityLabel: "",
       };
     }
 
     case "DROP_COMPLETE":
+      if (state.phase === "resolving-attempt") {
+        return {
+          ...state,
+          isDropping: false,
+          phase: "showing-result",
+        };
+      }
       return { ...state, isDropping: false };
-
-    case "CLEAR_SLASH_LINES":
-      return { ...state, slashLines: [] };
 
     default:
       return state;
@@ -231,14 +213,23 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 }
 
 export function useGameEngine() {
-  const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
+  const [state, dispatch] = useReducer(
+    gameReducer,
+    undefined,
+    createInitialState,
+  );
 
   const startGame = useCallback(() => dispatch({ type: "START_GAME" }), []);
-  const resetToIdle = useCallback(() => dispatch({ type: "RESET_TO_IDLE" }), []);
-  const nextLevel = useCallback(() => dispatch({ type: "NEXT_LEVEL" }), []);
-  const dropComplete = useCallback(() => dispatch({ type: "DROP_COMPLETE" }), []);
-  const clearSlashLines = useCallback(
-    () => dispatch({ type: "CLEAR_SLASH_LINES" }),
+  const resetToIdle = useCallback(
+    () => dispatch({ type: "RESET_TO_IDLE" }),
+    [],
+  );
+  const dropComplete = useCallback(
+    () => dispatch({ type: "DROP_COMPLETE" }),
+    [],
+  );
+  const advanceAfterFeedback = useCallback(
+    () => dispatch({ type: "ADVANCE_AFTER_FEEDBACK" }),
     [],
   );
 
@@ -248,6 +239,10 @@ export function useGameEngine() {
 
   const handlePointerMove = useCallback((point: Point) => {
     dispatch({ type: "POINTER_MOVE", point });
+  }, []);
+
+  const handlePointerCancel = useCallback(() => {
+    dispatch({ type: "POINTER_CANCEL" });
   }, []);
 
   const handlePointerUp = useCallback(
@@ -266,20 +261,20 @@ export function useGameEngine() {
     [],
   );
 
-  const finishGameOver = useCallback(() => {
-    return saveLocalBestScore(state.score);
-  }, [state.score]);
+  const finishRun = useCallback(() => {
+    return saveLocalBestScore(state.totalScore);
+  }, [state.totalScore]);
 
   return {
     state,
     startGame,
     resetToIdle,
-    nextLevel,
     dropComplete,
-    clearSlashLines,
+    advanceAfterFeedback,
     handlePointerDown,
     handlePointerMove,
+    handlePointerCancel,
     handlePointerUp,
-    finishGameOver,
+    finishRun,
   };
 }

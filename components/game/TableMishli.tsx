@@ -3,29 +3,35 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CoconutIllustration } from "./CoconutIllustration";
+import { CutTargetGuide } from "./CutTargetGuide";
 import { MishliHalfIllustration } from "./illustrations/MishliHalfIllustration";
 import { MishliCrackLayer } from "./illustrations/MishliCrackLayer";
+import type { CutTarget } from "@/lib/game/cutTargets";
 import { DROP_DURATION_MS } from "@/lib/game/constants";
 import type { MishliHitMark } from "@/lib/game/types";
 
 interface TableMishliProps {
-  cutProgress: number;
+  cutProgress?: number;
   isSplitting: boolean;
   keepHalves?: boolean;
   onSplitComplete?: () => void;
   hitShakeKey?: number;
   scale?: number;
   hitMarks?: MishliHitMark[];
+  cutTarget?: CutTarget | null;
+  showCutTarget?: boolean;
 }
 
 export function TableMishli({
-  cutProgress,
+  cutProgress = 0,
   isSplitting,
   keepHalves = false,
   onSplitComplete,
   hitShakeKey = 0,
   scale = 1,
   hitMarks = [],
+  cutTarget = null,
+  showCutTarget = false,
 }: TableMishliProps) {
   const [localShake, setLocalShake] = useState(0);
   const splitSeconds = DROP_DURATION_MS / 1000;
@@ -46,7 +52,7 @@ export function TableMishli({
   return (
     <div
       data-qa="table-mishli-root"
-      className="relative flex items-center justify-center"
+      className="pointer-events-none relative flex items-center justify-center"
       style={{ scale }}
     >
       <AnimatePresence mode="wait">
@@ -90,7 +96,7 @@ export function TableMishli({
           <motion.div
             key="whole"
             data-qa="fruit-body"
-            className={`relative -rotate-6 ${localShake ? "animate-mishli-hit" : ""}`}
+            className={`pointer-events-none relative -rotate-6 ${localShake ? "animate-mishli-hit" : ""}`}
             onAnimationEnd={() => setLocalShake(0)}
           >
             <CoconutIllustration
@@ -99,10 +105,16 @@ export function TableMishli({
               variant="table"
               className="aspect-[112/136] h-[clamp(190px,52vw,220px)] w-auto"
             />
+            {showCutTarget && cutTarget ? (
+              <div className="pointer-events-none absolute inset-x-[10%] top-[14%] bottom-[10%]">
+                <CutTargetGuide target={cutTarget} />
+              </div>
+            ) : null}
             <MishliCrackLayer marks={hitMarks} />
+            {/* Hitbox matches the visible green husk (not the board). */}
             <div
               data-qa="coconut-hitbox"
-              className="pointer-events-none absolute inset-x-[12%] top-[12%] bottom-[6%]"
+              className="pointer-events-none absolute inset-x-[8%] top-[8%] bottom-[4%]"
               aria-hidden
             />
           </motion.div>

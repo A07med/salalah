@@ -1,0 +1,3 @@
+ALTER TABLE "mishli_game_scores" ADD COLUMN "score_version" smallint DEFAULT 1 NOT NULL;--> statement-breakpoint
+CREATE INDEX "mishli_game_scores_v2_leaderboard_idx" ON "mishli_game_scores" USING btree ("score_version","score" DESC NULLS LAST,"created_at");--> statement-breakpoint
+ALTER TABLE "mishli_game_scores" ADD CONSTRAINT "mishli_game_scores_score_version_positive" CHECK ("mishli_game_scores"."score_version" >= 1);
