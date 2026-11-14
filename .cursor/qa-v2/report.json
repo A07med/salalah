@@ -1,0 +1,44 @@
+[
+  {
+    "viewport": "390x844",
+    "measurements": {
+      "overflow": true,
+      "hasProgress": false,
+      "hasLevel": false,
+      "attempt": "المحاولةالمشلي ١ من ٣",
+      "target": true,
+      "fruitContained": true
+    },
+    "missText": "٠ نقطة ما صابت!",
+    "pageErrors": [],
+    "finalVisible": true
+  },
+  {
+    "viewport": "430x932",
+    "measurements": {
+      "overflow": true,
+      "hasProgress": false,
+      "hasLevel": false,
+      "attempt": "المحاولةالمشلي ١ من ٣",
+      "target": true,
+      "fruitContained": true
+    },
+    "missText": "٠ نقطة ما صابت!",
+    "pageErrors": [],
+    "finalVisible": true
+  },
+  {
+    "viewport": "1440x900",
+    "measurements": {
+      "overflow": true,
+      "hasProgress": false,
+      "hasLevel": false,
+      "attempt": "المحاولةالمشلي ١ من ٣",
+      "target": true,
+      "fruitContained": true
+    },
+    "missText": "٠ نقطة ما صابت!",
+    "pageErrors": [],
+    "finalVisible": true
+  }
+]

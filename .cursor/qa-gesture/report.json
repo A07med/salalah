@@ -1,0 +1,323 @@
+[
+  {
+    "viewport": "390x844",
+    "input": "touch",
+    "url": "http://172.20.10.4:3239/",
+    "status": 200,
+    "hydrated": true,
+    "pageErrors": [],
+    "consoleErrors": [],
+    "startScroll": {
+      "overflowY": "auto",
+      "scrollable": true
+    },
+    "initial": {
+      "attemptCount": "0",
+      "tutorial": "اسحب الساطور على علامة القطعاضغط واسحب عبر الخط — النقرة وحدها ما تحسب",
+      "tutorialPointerEvents": "none",
+      "score": {
+        "x": 12,
+        "y": 17.59375,
+        "width": 80,
+        "height": 64,
+        "bottom": 81.59375
+      },
+      "cuts": {
+        "x": 258,
+        "y": 17.59375,
+        "width": 120,
+        "height": 64,
+        "bottom": 81.59375
+      },
+      "label": {
+        "x": 296.890625,
+        "y": 22.59375,
+        "width": 42.21875,
+        "height": 16,
+        "bottom": 38.59375
+      },
+      "equalCardHeights": true,
+      "labelInsideCard": true,
+      "cardOverflow": "visible",
+      "horizontalOverflow": false,
+      "overlays": [
+        {
+          "selector": "[data-qa=swipe-gesture-hint]",
+          "pointerEvents": "none"
+        },
+        {
+          "selector": "[data-qa=cut-target]",
+          "pointerEvents": "none"
+        },
+        {
+          "selector": "[data-qa=table-mishli-root]",
+          "pointerEvents": "none"
+        },
+        {
+          "selector": "[data-qa=chopping-board] svg",
+          "pointerEvents": "none"
+        }
+      ],
+      "backPointerEvents": "auto",
+      "zoneCursor": "grab"
+    },
+    "tapResult": {
+      "feedback": "اسحب الساطور، لا تنقر فقط",
+      "attemptCount": "0",
+      "phase": "ready",
+      "miniState": "pending"
+    },
+    "shortDragAttemptCount": "0",
+    "dragProgress": {
+      "pointerDowns": 3,
+      "pointerId": 5,
+      "captured": true,
+      "cleaverVisible": true,
+      "cursor": "grabbing"
+    },
+    "cutResult": {
+      "phase": "resolving-attempt",
+      "attemptCount": "1",
+      "score": "٩٦٧",
+      "miniState": "hit",
+      "splitVisible": true,
+      "tutorialVisible": false,
+      "cleaverVisible": true,
+      "impact": {
+        "x": 195.42383575439453,
+        "y": 560.7421875
+      },
+      "blade": {
+        "x": 195.42383575439453,
+        "y": 560.7421875
+      },
+      "alignmentError": 0
+    },
+    "nextAttempt": {
+      "phase": "ready",
+      "attemptCount": "1",
+      "attemptIndex": "1",
+      "fruitReady": true,
+      "tutorialVisible": false
+    },
+    "reverseResult": {
+      "attemptCount": "2",
+      "miniState": "hit"
+    },
+    "gameplayScrolled": false
+  },
+  {
+    "viewport": "430x932",
+    "input": "touch",
+    "url": "http://172.20.10.4:3239/",
+    "status": 200,
+    "hydrated": true,
+    "pageErrors": [],
+    "consoleErrors": [],
+    "startScroll": {
+      "overflowY": "auto",
+      "scrollable": true
+    },
+    "initial": {
+      "attemptCount": "0",
+      "tutorial": "اسحب الساطور على علامة القطعاضغط واسحب عبر الخط — النقرة وحدها ما تحسب",
+      "tutorialPointerEvents": "none",
+      "score": {
+        "x": 12,
+        "y": 17.59375,
+        "width": 80,
+        "height": 64,
+        "bottom": 81.59375
+      },
+      "cuts": {
+        "x": 298,
+        "y": 17.59375,
+        "width": 120,
+        "height": 64,
+        "bottom": 81.59375
+      },
+      "label": {
+        "x": 336.890625,
+        "y": 22.59375,
+        "width": 42.21875,
+        "height": 16,
+        "bottom": 38.59375
+      },
+      "equalCardHeights": true,
+      "labelInsideCard": true,
+      "cardOverflow": "visible",
+      "horizontalOverflow": false,
+      "overlays": [
+        {
+          "selector": "[data-qa=swipe-gesture-hint]",
+          "pointerEvents": "none"
+        },
+        {
+          "selector": "[data-qa=cut-target]",
+          "pointerEvents": "none"
+        },
+        {
+          "selector": "[data-qa=table-mishli-root]",
+          "pointerEvents": "none"
+        },
+        {
+          "selector": "[data-qa=chopping-board] svg",
+          "pointerEvents": "none"
+        }
+      ],
+      "backPointerEvents": "auto",
+      "zoneCursor": "grab"
+    },
+    "tapResult": {
+      "feedback": "اسحب الساطور، لا تنقر فقط",
+      "attemptCount": "0",
+      "phase": "ready",
+      "miniState": "pending"
+    },
+    "shortDragAttemptCount": "0",
+    "dragProgress": {
+      "pointerDowns": 3,
+      "pointerId": 5,
+      "captured": true,
+      "cleaverVisible": true,
+      "cursor": "grabbing"
+    },
+    "cutResult": {
+      "phase": "resolving-attempt",
+      "attemptCount": "1",
+      "score": "٩٦٧",
+      "miniState": "hit",
+      "splitVisible": true,
+      "tutorialVisible": false,
+      "cleaverVisible": true,
+      "impact": {
+        "x": 215.4675750732422,
+        "y": 612.421875
+      },
+      "blade": {
+        "x": 215.4675750732422,
+        "y": 612.421875
+      },
+      "alignmentError": 0
+    },
+    "nextAttempt": {
+      "phase": "ready",
+      "attemptCount": "1",
+      "attemptIndex": "1",
+      "fruitReady": true,
+      "tutorialVisible": false
+    },
+    "reverseResult": {
+      "attemptCount": "2",
+      "miniState": "hit"
+    },
+    "gameplayScrolled": false
+  },
+  {
+    "viewport": "1440x900",
+    "input": "mouse",
+    "url": "http://172.20.10.4:3239/",
+    "status": 200,
+    "hydrated": true,
+    "pageErrors": [],
+    "consoleErrors": [],
+    "startScroll": {
+      "overflowY": "auto",
+      "scrollable": true
+    },
+    "initial": {
+      "attemptCount": "0",
+      "tutorial": "اسحب الساطور على علامة القطعاضغط واسحب عبر الخط — النقرة وحدها ما تحسب",
+      "tutorialPointerEvents": "none",
+      "score": {
+        "x": 492,
+        "y": 17.59375,
+        "width": 80,
+        "height": 64,
+        "bottom": 81.59375
+      },
+      "cuts": {
+        "x": 820,
+        "y": 17.59375,
+        "width": 128,
+        "height": 64,
+        "bottom": 81.59375
+      },
+      "label": {
+        "x": 862.890625,
+        "y": 22.59375,
+        "width": 42.21875,
+        "height": 16,
+        "bottom": 38.59375
+      },
+      "equalCardHeights": true,
+      "labelInsideCard": true,
+      "cardOverflow": "visible",
+      "horizontalOverflow": false,
+      "overlays": [
+        {
+          "selector": "[data-qa=swipe-gesture-hint]",
+          "pointerEvents": "none"
+        },
+        {
+          "selector": "[data-qa=cut-target]",
+          "pointerEvents": "none"
+        },
+        {
+          "selector": "[data-qa=table-mishli-root]",
+          "pointerEvents": "none"
+        },
+        {
+          "selector": "[data-qa=chopping-board] svg",
+          "pointerEvents": "none"
+        }
+      ],
+      "backPointerEvents": "auto",
+      "zoneCursor": "grab"
+    },
+    "tapResult": {
+      "feedback": "اسحب الساطور، لا تنقر فقط",
+      "attemptCount": "0",
+      "phase": "ready",
+      "miniState": "pending"
+    },
+    "shortDragAttemptCount": "0",
+    "dragProgress": {
+      "pointerDowns": 3,
+      "pointerId": 1,
+      "captured": true,
+      "cleaverVisible": true,
+      "cursor": "grabbing"
+    },
+    "cutResult": {
+      "phase": "resolving-attempt",
+      "attemptCount": "1",
+      "score": "٩٦٧",
+      "miniState": "hit",
+      "splitVisible": true,
+      "tutorialVisible": false,
+      "cleaverVisible": true,
+      "impact": {
+        "x": 240.46759033203125,
+        "y": 590.5
+      },
+      "blade": {
+        "x": 240.46759033203125,
+        "y": 590.5
+      },
+      "alignmentError": 0
+    },
+    "nextAttempt": {
+      "phase": "ready",
+      "attemptCount": "1",
+      "attemptIndex": "1",
+      "fruitReady": true,
+      "tutorialVisible": false
+    },
+    "reverseResult": {
+      "attemptCount": "2",
+      "miniState": "hit"
+    },
+    "gameplayScrolled": false
+  }
+]

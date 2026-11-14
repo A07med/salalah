@@ -1,0 +1,196 @@
+{
+  "mouse": {
+    "after": {
+      "score": "٩٦٧",
+      "pop": "+٩٦٧ نقطةقطع مثالي!",
+      "mini0": "hit"
+    },
+    "errors": [],
+    "outsideStartWorked": true
+  },
+  "touch": {
+    "after": {
+      "score": "٩٦٧",
+      "pop": "+٩٦٧ نقطةقطع مثالي!",
+      "mini0": "hit"
+    },
+    "errors": [],
+    "outsideStartWorked": true
+  },
+  "viewports": [
+    {
+      "viewport": "390x844",
+      "hud": {
+        "overflow": true,
+        "score": {
+          "x": 12,
+          "y": 12,
+          "w": 76,
+          "h": 53.59375
+        },
+        "cuts": {
+          "x": 262,
+          "y": 12,
+          "w": 116,
+          "h": 53.59375
+        },
+        "heightsMatch": true,
+        "scoreLeftOfCuts": true,
+        "pe": {
+          "target": "none",
+          "cleaverParent": "none",
+          "back": "auto",
+          "zone": "auto",
+          "boardSvg": "none"
+        },
+        "zeroText": "٠",
+        "pending": [
+          "pending",
+          "pending",
+          "pending"
+        ]
+      },
+      "finals": {
+        "states": [
+          {
+            "qa": "mini-mishli-2",
+            "state": "hit",
+            "fill": "#88A45D"
+          },
+          {
+            "qa": "mini-mishli-1",
+            "state": "miss",
+            "fill": "#E8E0D0"
+          },
+          {
+            "qa": "mini-mishli-0",
+            "state": "hit",
+            "fill": "#6E9140"
+          }
+        ],
+        "total": "١٦٥٨",
+        "rows": [
+          "المشلي ١٩٦٧",
+          "المشلي ٢٠",
+          "المشلي ٣٦٩١"
+        ]
+      }
+    },
+    {
+      "viewport": "430x932",
+      "hud": {
+        "overflow": true,
+        "score": {
+          "x": 12,
+          "y": 12,
+          "w": 76,
+          "h": 53.59375
+        },
+        "cuts": {
+          "x": 302,
+          "y": 12,
+          "w": 116,
+          "h": 53.59375
+        },
+        "heightsMatch": true,
+        "scoreLeftOfCuts": true,
+        "pe": {
+          "target": "none",
+          "cleaverParent": "none",
+          "back": "auto",
+          "zone": "auto",
+          "boardSvg": "none"
+        },
+        "zeroText": "٠",
+        "pending": [
+          "pending",
+          "pending",
+          "pending"
+        ]
+      },
+      "finals": {
+        "states": [
+          {
+            "qa": "mini-mishli-2",
+            "state": "hit",
+            "fill": "#88A45D"
+          },
+          {
+            "qa": "mini-mishli-1",
+            "state": "miss",
+            "fill": "#E8E0D0"
+          },
+          {
+            "qa": "mini-mishli-0",
+            "state": "hit",
+            "fill": "#6E9140"
+          }
+        ],
+        "total": "١٦٥٨",
+        "rows": [
+          "المشلي ١٩٦٧",
+          "المشلي ٢٠",
+          "المشلي ٣٦٩١"
+        ]
+      }
+    },
+    {
+      "viewport": "1440x900",
+      "hud": {
+        "overflow": true,
+        "score": {
+          "x": 492,
+          "y": 12,
+          "w": 76,
+          "h": 53.59375
+        },
+        "cuts": {
+          "x": 824,
+          "y": 12,
+          "w": 124,
+          "h": 53.59375
+        },
+        "heightsMatch": true,
+        "scoreLeftOfCuts": true,
+        "pe": {
+          "target": "none",
+          "cleaverParent": "none",
+          "back": "auto",
+          "zone": "auto",
+          "boardSvg": "none"
+        },
+        "zeroText": "٠",
+        "pending": [
+          "pending",
+          "pending",
+          "pending"
+        ]
+      },
+      "finals": {
+        "states": [
+          {
+            "qa": "mini-mishli-2",
+            "state": "hit",
+            "fill": "#88A45D"
+          },
+          {
+            "qa": "mini-mishli-1",
+            "state": "miss",
+            "fill": "#E8E0D0"
+          },
+          {
+            "qa": "mini-mishli-0",
+            "state": "hit",
+            "fill": "#6E9140"
+          }
+        ],
+        "total": "١٦٥٨",
+        "rows": [
+          "المشلي ١٩٦٧",
+          "المشلي ٢٠",
+          "المشلي ٣٦٩١"
+        ]
+      }
+    }
+  ]
+}
